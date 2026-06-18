@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>田栩宁超话数据看板 v2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+
+/* === Animated Background === */
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#0a0a1a;color:#e8e8f0;min-height:100vh;padding:24px;overflow-x:hidden;position:relative}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 20% 50%,rgba(120,60,255,.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(255,180,0,.08) 0%,transparent 50%),radial-gradient(ellipse at 50% 80%,rgba(0,200,180,.06) 0%,transparent 50%);pointer-events:none;z-index:0}
+
+/* Floating orbs */
+.orb{position:fixed;border-radius:50%;filter:blur(80px);opacity:.4;animation:float 20s ease-in-out infinite;pointer-events:none;z-index:0}
+.orb-1{width:400px;height:400px;background:rgba(255,200,0,.15);top:-100px;right:-100px;animation-delay:0s}
+.orb-2{width:300px;height:300px;background:rgba(120,80,255,.12);bottom:-50px;left:-80px;animation-delay:-7s}
+.orb-3{width:250px;height:250px;background:rgba(0,210,180,.1);top:40%;left:60%;animation-delay:-14s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-40px) scale(1.05)}66%{transform:translate(-20px,30px) scale(.95)}}
+
+/* === Glass Cards === */
+.dashboard{max-width:1440px;margin:0 auto;position:relative;z-index:1}
+.glass{background:rgba(255,255,255,.03);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05)}
+
+/* === Header === */
+.header{text-align:center;padding:40px 24px;margin-bottom:28px;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent,rgba(255,200,0,.05),transparent,rgba(120,80,255,.05),transparent);animation:rotate 30s linear infinite}
+@keyframes rotate{to{transform:rotate(360deg)}}
+.header h1{font-size:2.6em;font-weight:900;letter-spacing:-.02em;background:linear-gradient(135deg,#ffd200 0%,#ff9500 30%,#ffd200 60%,#ffe566 100%);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s ease-in-out infinite;position:relative}
+@keyframes shimmer{0%,100%{background-position:0% center}50%{background-position:200% center}}
+.header .subtitle{color:rgba(255,255,255,.5);font-size:.9em;margin-top:8px;font-weight:300;letter-spacing:.5px}
+.header .artist-info{margin-top:14px;color:rgba(255,255,255,.35);font-size:.82em;line-height:1.8;letter-spacing:.3px}
+
+/* === Stats Row === */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:28px}
+.stat-card{padding:20px 14px;text-align:center;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,200,0,.05),transparent);opacity:0;transition:opacity .3s}
+.stat-card:hover{transform:translateY(-5px) scale(1.02);box-shadow:0 12px 40px rgba(255,200,0,.1);border-color:rgba(255,200,0,.2)}
+.stat-card:hover::before{opacity:1}
+.stat-card .number{font-size:1.6em;font-weight:800;background:linear-gradient(135deg,#ffd200,#ffaa00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;position:relative}
+.stat-card .label{font-size:.75em;color:rgba(255,255,255,.45);margin-top:6px;font-weight:400;text-transform:uppercase;letter-spacing:1px}
+
+/* === Sections === */
+.section{padding:28px;margin-bottom:28px}
+.section h2{font-size:1.25em;margin-bottom:18px;color:#fff;display:flex;align-items:center;gap:10px;font-weight:700}
+.section h2::before{content:'';width:4px;height:22px;background:linear-gradient(180deg,#ffd200,#ff9500);border-radius:4px;box-shadow:0 0 12px rgba(255,200,0,.4)}
+
+/* === Controls & Buttons === */
+.controls{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.btn{padding:7px 16px;border-radius:24px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.7);cursor:pointer;font-size:.82em;font-weight:500;transition:all .3s;backdrop-filter:blur(4px)}
+.btn:hover{background:rgba(255,200,0,.1);border-color:rgba(255,200,0,.3);color:#ffd200;box-shadow:0 0 16px rgba(255,200,0,.1)}
+.btn.active{background:linear-gradient(135deg,#ffd200,#ffaa00);color:#0a0a1a;border-color:transparent;font-weight:600;box-shadow:0 4px 16px rgba(255,200,0,.3)}
+
+/* === Table === */
+table{width:100%;border-collapse:collapse}
+th,td{padding:11px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.04)}
+th{color:rgba(255,255,255,.4);font-size:.75em;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:color .2s}
+th:hover{color:#ffd200}
+tr{transition:all .2s}
+tr:hover{background:rgba(255,200,0,.03)}
+
+/* === Rank Badges === */
+.rank{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.78em}
+.rank-1{background:linear-gradient(135deg,#ffd700,#ffaa00);color:#1a1a2e;box-shadow:0 2px 8px rgba(255,200,0,.4)}
+.rank-2{background:linear-gradient(135deg,#e0e0e0,#a0a0a0);color:#1a1a2e;box-shadow:0 2px 8px rgba(200,200,200,.3)}
+.rank-3{background:linear-gradient(135deg,#cd7f32,#a0522d);color:#fff;box-shadow:0 2px 8px rgba(205,127,50,.3)}
+.rank-other{background:rgba(255,255,255,.06);color:rgba(255,255,255,.5)}
+
+/* === Content Elements === */
+.author{color:#7cb3ff;font-weight:600}
+.content-preview{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.6)}
+.metric{font-weight:600}
+.metric-likes{color:#ff6b8a}
+.metric-comments{color:#4ecdc4}
+.metric-reposts{color:#a78bfa}
+.chart-container{position:relative;height:260px;margin-top:16px}
+
+/* === Tags === */
+.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72em;margin:2px;background:rgba(255,200,0,.08);color:#ffd200;border:1px solid rgba(255,200,0,.15);font-weight:500}
+.tag-official{background:rgba(124,179,255,.08);color:#7cb3ff;border-color:rgba(124,179,255,.2)}
+.tag-brand{background:rgba(78,205,196,.08);color:#4ecdc4;border-color:rgba(78,205,196,.15)}
+.time-col{color:rgba(255,255,255,.35);font-size:.78em;white-space:nowrap}
+
+/* === Search === */
+.search-box input{width:100%;padding:11px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#e8e8f0;font-size:.88em;outline:none;margin-bottom:16px;transition:all .3s;backdrop-filter:blur(4px)}
+.search-box input:focus{border-color:rgba(255,200,0,.4);box-shadow:0 0 20px rgba(255,200,0,.08)}
+.search-box input::placeholder{color:rgba(255,255,255,.3)}
+
+/* === Post Cards === */
+.post-card{background:rgba(255,255,255,.02);border-radius:14px;padding:18px;margin-bottom:14px;border:1px solid rgba(255,255,255,.05);transition:all .3s}
+.post-card:hover{border-color:rgba(255,200,0,.15);box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.post-card .pc-header{display:flex;justify-content:space-between;margin-bottom:10px;align-items:center}
+.post-card .pc-content{color:rgba(255,255,255,.6);font-size:.88em;margin-bottom:12px;line-height:1.6}
+.post-card .pc-metrics{display:flex;gap:16px;font-size:.82em}
+
+/* === Personal Stats === */
+.personal-stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04);transition:all .2s}
+.personal-stat:hover{padding-left:6px;border-bottom-color:rgba(255,200,0,.1)}
+.personal-stat .ps-label{color:rgba(255,255,255,.45);font-size:.88em;font-weight:400}
+.personal-stat .ps-value{color:#ffd200;font-weight:700}
+
+/* === Topic Tags === */
+.topic-tag{display:inline-block;padding:6px 14px;border-radius:24px;margin:4px;font-size:.82em;background:rgba(255,200,0,.06);border:1px solid rgba(255,200,0,.2);color:#ffd200;font-weight:500;transition:all .3s}
+.topic-tag:hover{transform:scale(1.05);box-shadow:0 2px 12px rgba(255,200,0,.15)}
+.topic-tag.hot{background:rgba(255,107,138,.08);border-color:rgba(255,107,138,.25);color:#ff6b8a}
+.topic-tag.hot:hover{box-shadow:0 2px 12px rgba(255,107,138,.2)}
+.topic-tag.brand{background:rgba(78,205,196,.06);border-color:rgba(78,205,196,.2);color:#4ecdc4}
+.topic-tag.brand:hover{box-shadow:0 2px 12px rgba(78,205,196,.15)}
+
+/* === Topic Summary === */
+.topic-summary{line-height:1.9;color:rgba(255,255,255,.6);font-size:.9em}
+.topic-summary strong{color:#ffd200;font-weight:600}
+.topic-summary p{margin-bottom:4px}
+
+/* === Layout === */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+
+/* === Comments === */
+.comment-item{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.comment-item .ci-user{color:#7cb3ff;font-size:.85em;font-weight:600}
+.comment-item .ci-text{color:rgba(255,255,255,.6);font-size:.88em;margin-top:5px;line-height:1.5}
+.comment-item .ci-meta{color:rgba(255,255,255,.25);font-size:.75em;margin-top:4px}
+
+/* === Footer === */
+.follower-note{background:rgba(255,200,0,.03);border:1px solid rgba(255,200,0,.12);border-radius:12px;padding:14px;margin-top:14px;font-size:.85em;color:rgba(255,255,255,.5)}
+.footer{text-align:center;padding:28px;color:rgba(255,255,255,.25);font-size:.8em;letter-spacing:.5px}
+
+/* === Scroll Animations === */
+.fade-in{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+
+/* === Responsive === */
+@media(max-width:768px){.stats-row{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}table{font-size:.78em}th,td{padding:7px 5px}.header h1{font-size:1.8em}}
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="dashboard">
+<div class="header glass fade-in">
+<h1>田栩宁超话数据看板</h1>
+<p class="subtitle">数据采集时间：2026-06-18 18:05 | 数据来源：微博</p>
+<div class="artist-info">田栩宁 | 1997.09.19 | 山东济宁 | 处女座 | 华策影视签约演员 | IP属地：上海 | 应援色：栩光金星色 | 粉丝名：柠檬水</div>
+</div>
+
+<!-- ===== 个人微博 粉丝追踪 ===== -->
+<div class="section glass fade-in">
+<h2>田栩宁个人微博 · 粉丝追踪</h2>
+<div class="two-col">
+<div>
+<div class="personal-stat"><span class="ps-label">当前粉丝</span><span class="ps-value">530.8万</span></div>
+<div class="personal-stat"><span class="ps-label">关注数</span><span class="ps-value">59</span></div>
+<div class="personal-stat"><span class="ps-label">微博数</span><span class="ps-value">295条</span></div>
+<div class="personal-stat"><span class="ps-label">总转评赞</span><span class="ps-value">10.95亿</span></div>
+<div class="personal-stat"><span class="ps-label">V指数(文娱)</span><span class="ps-value">89.58分</span></div>
+<div class="personal-stat"><span class="ps-label">本月互动人数</span><span class="ps-value">88万</span></div>
+<div class="personal-stat"><span class="ps-label">近30天视频播放</span><span class="ps-value">3543.7万</span></div>
+<div class="personal-stat"><span class="ps-label">主页访问量</span><span class="ps-value">151万+</span></div>
+<div class="personal-stat"><span class="ps-label">近期热搜上榜</span><span class="ps-value">36次</span></div>
+<div class="personal-stat"><span class="ps-label">热搜讨论量</span><span class="ps-value">474.9万</span></div>
+<div class="personal-stat"><span class="ps-label">热搜阅读量</span><span class="ps-value">7.5亿</span></div>
+</div>
+<div>
+<div class="chart-container" style="height:240px;"><canvas id="followerChart"></canvas></div>
+<div class="follower-note">
+💡 <strong>涨粉追踪说明：</strong>粉丝数每次运行脚本时自动记录。桌面有 <code>follower_log.json</code> 文件持续积累数据。建议每天运行一次 <code>weibo_scraper3.py</code>，即可看到每日涨/掉粉趋势。<br>
+当前记录：2026-06-18 → 530.8万
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 个人微博最新帖子+互动总结 ===== -->
+<div class="section glass fade-in">
+<h2>个人微博最新帖子 · 互动内容总结</h2>
+
+<div class="post-card">
+<div class="pc-header"><span class="author">田栩宁_ × 参半口腔</span><span class="tag tag-brand">品牌代言</span><span class="time-col">2026-06-16</span></div>
+<div class="pc-content">夏天不只有一种节奏——动时活力追光，静处温润从容。很高兴成为 @参半口腔 品牌代言人。把夏天，留在呼吸里。#田栩宁参半品牌代言人#</div>
+<div class="pc-metrics"><span class="metric metric-reposts">转发 100万+</span><span class="metric metric-comments">评论 100万+</span><span class="metric metric-likes">点赞 1013万</span><span style="color:#888;margin-left:10px;">播放 1955万</span></div>
+<h4 style="color:#4ecdc4;margin:12px 0 8px;font-size:.9em;">评论区热门内容总结：</h4>
+<div class="comment-item"><span class="ci-user">核心互动主题：</span><div class="ci-text">① 粉丝控评打卡 — "柠檬水唯爱田栩宁💛" "老公解锁新商务"<br>② 品牌宣传语共创 — "以专业致敬品质，以清新邂逅温柔""一息清芬，万般惬意"<br>③ 情感表达 — "恭喜老公" "老爸🌽⚡🌙" "期待"</div></div>
+</div>
+
+<div class="post-card">
+<div class="pc-header"><span class="author">田栩宁_ × 德施曼智能锁</span><span class="tag tag-brand">品牌代言</span><span class="time-col">2026-06-09</span></div>
+<div class="pc-content">门外的世界，属于所有人；但门后的天地，只属于你自己。德施曼智能锁，六重感知，随心定义。#田栩宁德施曼代言人#</div>
+<div class="pc-metrics"><span class="metric metric-reposts">转发 100万+</span><span class="metric metric-comments">评论 100万+</span><span class="metric metric-likes">点赞 821万</span><span style="color:#888;margin-left:10px;">播放 1061万</span></div>
+<h4 style="color:#4ecdc4;margin:12px 0 8px;font-size:.9em;">评论区热门内容总结：</h4>
+<div class="comment-item"><span class="ci-user">核心互动主题：</span><div class="ci-text">① 粉丝期待直播/活动 — "老公今晚见""晚上八点不见不散"<br>② 品牌宣传配合 — "风有归期，家有暖意""让每一次开门都遇见温柔"<br>③ 日常互动 — "老公早上好""雷子~" 各类花式昵称<br>④ 趣味评论 — "辣馍香黏泥🍋" 谐音梗创作</div></div>
+</div>
+
+<div class="post-card">
+<div class="pc-header"><span class="author">田栩宁_ × 汉堡王中国</span><span class="tag tag-brand">品牌代言</span><span class="time-col">2025-12-30</span></div>
+<div class="pc-content">总在寻找一种力量，是忠于本味的坚持，也是敢于表达的鲜活。很开心找到了默契的伙伴 @汉堡王中国。好好吃饭，吃堡堡 #汉堡王品牌代言人田栩宁#</div>
+<div class="pc-metrics"><span class="metric metric-reposts">转发 100万+</span><span class="metric metric-comments">评论 100万+</span><span class="metric metric-likes">点赞 4021万</span><span style="color:#888;margin-left:10px;">播放 3739万</span></div>
+</div>
+
+<div class="post-card">
+<div class="pc-header"><span class="author">田栩宁_ × 巴黎欧莱雅</span><span class="tag tag-brand">彩妆代言</span><span class="time-col">2025-12-22</span></div>
+<div class="pc-content">烟火划过夜空，点亮了新的希望。不必追光，光自落在你脸上。很高兴成为 @巴黎欧莱雅 彩妆代言人。#欧莱雅黑金气垫# 烟花限定版</div>
+<div class="pc-metrics"><span class="metric metric-reposts">转发 100万+</span><span class="metric metric-comments">评论 100万+</span><span class="metric metric-likes">点赞 2386万</span><span style="color:#888;margin-left:10px;">播放 2581万</span></div>
+</div>
+
+<h3 style="color:#64b5f6;margin:16px 0 10px;font-size:1em;">个人微博互动内容综合总结</h3>
+<div class="topic-summary">
+<p>📊 <strong>粉丝互动特征分析：</strong></p>
+<p>1️⃣ <strong>高度组织化控评</strong> — 粉丝有统一的控评文案模板，包含品牌关键词+表情+@正主，专业度很高</p>
+<p>2️⃣ <strong>情感称呼多样</strong> — "老公""老爸""雷子""蕾蕾""宝宝"等多种亲昵称呼并存</p>
+<p>3️⃣ <strong>商务配合积极</strong> — 每条品牌合作帖评论区都有大量粉丝自发创作品牌相关文案</p>
+<p>4️⃣ <strong>互动数据极强</strong> — 近期帖子均破100万+转评，点赞从821万到4021万不等</p>
+<p>5️⃣ <strong>活跃时间</strong> — 发博后9:19-9:27密集互动，凌晨2-3点仍有活跃</p>
+</div>
+</div>
+
+<!-- ===== 超话基础数据 ===== -->
+<div class="stats-row fade-in">
+<div class="stat-card glass"><div class="number">720.7亿</div><div class="label">超话阅读</div></div>
+<div class="stat-card glass"><div class="number">2.4亿</div><div class="label">帖子总数</div></div>
+<div class="stat-card glass"><div class="number">276万</div><div class="label">柠檬水</div></div>
+<div class="stat-card glass"><div class="number">27.2万</div><div class="label">今日签到</div></div>
+<div class="stat-card glass"><div class="number">530.8万</div><div class="label">微博粉丝</div></div>
+<div class="stat-card glass"><div class="number">88万</div><div class="label">月互动人数</div></div>
+<div class="stat-card glass"><div class="number">36次</div><div class="label">近期上热搜</div></div>
+<div class="stat-card glass"><div class="number">7.5亿</div><div class="label">热搜阅读</div></div>
+</div>
+
+<!-- ===== 超话热帖TOP ===== -->
+<div class="section glass fade-in">
+<h2>超话热门帖子 TOP排行</h2>
+<div class="search-box"><input type="text" placeholder="搜索帖子内容或作者..." oninput="filterPosts(this.value)"></div>
+<div class="controls"><button class="btn active" onclick="sortTable('likes')">按点赞</button><button class="btn" onclick="sortTable('comments')">按评论</button><button class="btn" onclick="sortTable('reposts')">按转发</button><button class="btn" onclick="sortTable('time')">按时间</button></div>
+<table><thead><tr><th>#</th><th>发布者</th><th>内容</th><th>转发</th><th>评论</th><th>点赞</th><th>时间</th></tr></thead><tbody id="postBody"></tbody></table>
+</div>
+
+<!-- ===== 商务板块 ===== -->
+<div class="section glass fade-in">
+<h2>商务/品牌相关讨论</h2>
+<p style="color:#888;margin-bottom:14px;font-size:.83em;">筛选含品牌名、代言、商务(sw)、合作等关键词的内容</p>
+<table><thead><tr><th>#</th><th>品牌</th><th>合作类型</th><th>发布时间</th><th>播放量</th><th>互动量级</th></tr></thead>
+<tbody>
+<tr><td><span class="rank rank-1">1</span></td><td><span class="author">汉堡王中国</span></td><td>品牌代言人</td><td class="time-col">2025-12-30</td><td>3739万</td><td><span class="metric metric-likes">4021万赞</span></td></tr>
+<tr><td><span class="rank rank-2">2</span></td><td><span class="author">巴黎欧莱雅</span></td><td>彩妆代言人</td><td class="time-col">2025-12-22</td><td>2581万</td><td><span class="metric metric-likes">2386万赞</span></td></tr>
+<tr><td><span class="rank rank-3">3</span></td><td><span class="author">参半口腔</span></td><td>品牌代言人</td><td class="time-col">2026-06-16</td><td>1955万</td><td><span class="metric metric-likes">1013万赞</span></td></tr>
+<tr><td><span class="rank rank-other">4</span></td><td><span class="author">德施曼智能锁</span></td><td>品牌代言人</td><td class="time-col">2026-06-09</td><td>1061万</td><td><span class="metric metric-likes">821万赞</span></td></tr>
+<tr><td><span class="rank rank-other">5</span></td><td><span class="author">戛纳红毯</span></td><td>国际活动</td><td class="time-col">2026-06</td><td>-</td><td>超话讨论中</td></tr>
+<tr><td><span class="rank rank-other">6</span></td><td><span class="author">黛珂Decorté</span></td><td>品牌小卡/周边</td><td class="time-col">2026-06</td><td>-</td><td>超话讨论中</td></tr>
+</tbody></table>
+<h3 style="color:#4ecdc4;margin:16px 0 10px;font-size:.95em;">已确认代言品牌矩阵</h3>
+<div><span class="topic-tag brand">汉堡王 · 品牌代言人</span><span class="topic-tag brand">巴黎欧莱雅 · 彩妆代言人</span><span class="topic-tag brand">参半口腔 · 品牌代言人</span><span class="topic-tag brand">德施曼 · 品牌代言人</span><span class="topic-tag brand">黛珂 · 品牌合作</span><span class="topic-tag">戛纳 · 红毯首秀</span></div>
+
+<h3 style="color:#4ecdc4;margin:16px 0 10px;font-size:.95em;">超话中品牌相关讨论</h3>
+<table><thead><tr><th>发布者</th><th>内容</th><th>关联品牌</th><th>互动</th></tr></thead>
+<tbody>
+<tr><td class="author">爱喝酸奶333333</td><td>我的参半也收到啦</td><td><span class="tag tag-brand">参半</span></td><td>14评 9赞</td></tr>
+<tr><td class="author">豆馅儿的灰鹦鹉</td><td>没拥有黛珂小卡是我一辈子的潮湿</td><td><span class="tag tag-brand">黛珂</span></td><td>22赞</td></tr>
+<tr><td class="author">过失的数学题</td><td>好好刷牙，好好生活🧉 参半相关视频</td><td><span class="tag tag-brand">参半</span></td><td>44评 26赞</td></tr>
+<tr><td class="author">这个夏天有点-田</td><td>#田栩宁戛纳红毯首秀# 满满人夫感</td><td><span class="tag tag-brand">戛纳</span></td><td>78评</td></tr>
+<tr><td class="author">噗噗枇杷</td><td>济宁端午痛楼 吊旗/易拉宝/签名板</td><td><span class="tag">线下应援</span></td><td>203评 654赞</td></tr>
+</tbody></table>
+</div>
+
+<!-- ===== 今日讨论主题 ===== -->
+<div class="section glass fade-in">
+<h2>今日超话核心讨论主题</h2>
+<div class="two-col">
+<div>
+<h3 style="color:#64b5f6;margin-bottom:10px;font-size:.95em;">热门话题标签</h3>
+<span class="topic-tag hot">颜值/美照 (8)</span><span class="topic-tag hot">官方物料 (5)</span><span class="topic-tag">端午节 (4)</span><span class="topic-tag">品牌周边开箱 (3)</span><span class="topic-tag">INS搬运 (3)</span><span class="topic-tag">粉丝日常 (5)</span><span class="topic-tag">梦女/恋爱文学 (3)</span><span class="topic-tag">公益活动 (2)</span><span class="topic-tag">线下应援 (2)</span><span class="topic-tag">毕业季 (2)</span>
+</div>
+<div><div class="chart-container" style="height:230px;"><canvas id="topicChart"></canvas></div></div>
+</div>
+<h3 style="color:#64b5f6;margin:16px 0 10px;font-size:.95em;">今日讨论分析</h3>
+<div class="topic-summary">
+<p>📊 <strong>2026年6月18日 超话核心主题：</strong></p>
+<p>1️⃣ <strong>工作室新物料引爆</strong> — "卷毛"造型物料发布，33分钟内即获17.3万赞/1.7万评，粉丝热议"荷尔蒙""门面担当""钓梦女"</p>
+<p>2️⃣ <strong>端午节氛围浓厚</strong> — 济宁痛楼筹备（吊旗/易拉宝）、端午粽子话题、粉丝节日生活分享</p>
+<p>3️⃣ <strong>参半品牌合作余热</strong> — 6月16日官宣后，超话持续有粉丝晒收到参半周边产品</p>
+<p>4️⃣ <strong>INS搬运讨论</strong> — 田栩宁6月17日更新Instagram，粉丝搬运讨论</p>
+<p>5️⃣ <strong>粉丝正能量日常</strong> — 收研究生录取通知书、教资体检、公益捐助分享</p>
+<p>6️⃣ <strong>梦女/创作类</strong> — "出租屋文学""恋爱小记"等同人创作活跃</p>
+<p style="margin-top:12px;color:#888;">💡 <strong>整体判断：</strong>物料驱动型超话日。工作室高频输出+品牌合作叠加+节日话题，粉丝活跃度极高（今日签到27.2万，评论区呈现高度组织化控评特征）。商务价值方面，近期已连续官宣参半、德施曼两个代言，加上存量的汉堡王、欧莱雅，商业变现能力持续验证。</p>
+</div>
+</div>
+
+<!-- ===== 图表 ===== -->
+<div class="section glass fade-in">
+<h2>互动数据可视化</h2>
+<div class="two-col">
+<div class="chart-container"><canvas id="engagementChart"></canvas></div>
+<div class="chart-container"><canvas id="brandChart"></canvas></div>
+</div>
+</div>
+
+<div class="footer">田栩宁超话数据看板 · 2026-06-18 · 每日运行 weibo_scraper3.py 可积累粉丝趋势数据</div>
+</div>
+
+<script>
+const posts=[
+{author:"田栩宁工作室",official:true,content:"#今田天气晴# 卷毛🎧",reposts:18000,comments:17000,likes:173000,time:"06-18",ts:20260618.99},
+{author:"田栩宁工作室",official:true,content:"📸 清爽入夏 现场图已送达📮",reposts:98000,comments:81000,likes:187000,time:"06-03",ts:20260603},
+{author:"头号蕾姆",official:false,content:"做好被萌翻的准备🫡",reposts:15000,comments:8446,likes:5940,time:"06-09",ts:20260609},
+{author:"月亮奶糖百分甜",official:false,content:"美到不可方物🥰",reposts:13000,comments:6910,likes:4499,time:"06-16",ts:20260616},
+{author:"有雾-Youwu",official:false,content:"学会双手拥抱 学会爱情🔥",reposts:9059,comments:5309,likes:5501,time:"06-17",ts:20260617.18},
+{author:"捣鼓猫柠",official:false,content:"荷尔蒙or小田豆 反差•拿捏🫴",reposts:7841,comments:4707,likes:2690,time:"06-17",ts:20260617.08},
+{author:"月亮奶糖百分甜",official:false,content:"🎸♪🎧 #田栩宁#",reposts:6972,comments:4183,likes:2582,time:"06-17",ts:20260617.15},
+{author:"烟波里的棠",official:false,content:"荷尔蒙肆意漫延~",reposts:2269,comments:1499,likes:5456,time:"06-16",ts:20260616.21},
+{author:"兔宝宝哥斯拉咚",official:false,content:"出租屋文学",reposts:2612,comments:1704,likes:1081,time:"06-17",ts:20260617.21},
+{author:"解剖SK",official:false,content:"又在钓梦女么！！！",reposts:2133,comments:1518,likes:4635,time:"06-17",ts:20260617.14},
+{author:"捣鼓猫柠",official:false,content:"爱豆·门面，谁家的？",reposts:1210,comments:865,likes:707,time:"06-18",ts:20260618.09},
+{author:"BeAjuice",official:false,content:"🎞️美照合集",reposts:719,comments:459,likes:795,time:"06-17",ts:20260617.152},
+{author:"噗噗枇杷",official:false,content:"济宁端午痛楼 吊旗/易拉宝",reposts:218,comments:203,likes:654,time:"06-18",ts:20260618.08},
+{author:"宁宁超田919",official:false,content:"柠檬水公益捐助",reposts:261,comments:269,likes:1067,time:"06-15",ts:20260615},
+{author:"八卦朝我来",official:false,content:"#向全世界安利田栩宁# 太帅了",reposts:86,comments:311,likes:192,time:"06-17",ts:20260617.20},
+{author:"Snakecoil",official:false,content:"仰头真的好那个啊..🚬",reposts:225,comments:88,likes:1123,time:"06-12",ts:20260612},
+{author:"多肉甜田",official:false,content:"小狗偷吃粽子 #田雷#",reposts:163,comments:140,likes:310,time:"06-18",ts:20260618.17},
+{author:"田柠檬_T",official:false,content:"收到研究生录取通知书啦✌",reposts:1,comments:110,likes:376,time:"06-18",ts:20260618.12},
+{author:"LimoneSkye",official:false,content:"长这样啥意思 涂黄色啥意思",reposts:62,comments:84,likes:278,time:"06-18",ts:20260618.07},
+{author:"小猫知夏意-",official:false,content:"神之侧颜✨ #田栩宁#",reposts:55,comments:145,likes:101,time:"06-18",ts:20260618.10}
+];
+let currentSort='likes',sortDir='desc',filtered=[...posts];
+function fmt(n){if(n>=10000)return(n/10000).toFixed(1)+'万';if(n>=1000)return(n/1000).toFixed(1)+'k';return n.toLocaleString();}
+function rc(i){return i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';}
+function filterPosts(q){q=q.toLowerCase();filtered=posts.filter(p=>p.author.toLowerCase().includes(q)||p.content.toLowerCase().includes(q));render();}
+function sortTable(key){if(currentSort===key)sortDir=sortDir==='desc'?'asc':'desc';else{currentSort=key;sortDir='desc';}document.querySelectorAll('.controls .btn').forEach(b=>b.classList.remove('active'));const m={likes:0,comments:1,reposts:2,time:3};if(m[key]!==undefined)document.querySelectorAll('.controls .btn')[m[key]].classList.add('active');render();}
+function render(){const sorted=[...filtered].sort((a,b)=>{let va,vb;if(currentSort==='likes'){va=a.likes;vb=b.likes}else if(currentSort==='comments'){va=a.comments;vb=b.comments}else if(currentSort==='reposts'){va=a.reposts;vb=b.reposts}else{va=a.ts;vb=b.ts}return sortDir==='desc'?vb-va:va-vb});document.getElementById('postBody').innerHTML=sorted.map((p,i)=>`<tr><td><span class="rank ${rc(i)}">${i+1}</span></td><td><span class="author">${p.author}</span>${p.official?'<span class="tag tag-official">官方</span>':''}</td><td><div class="content-preview" title="${p.content}">${p.content}</div></td><td><span class="metric metric-reposts">${fmt(p.reposts)}</span></td><td><span class="metric metric-comments">${fmt(p.comments)}</span></td><td><span class="metric metric-likes">${fmt(p.likes)}</span></td><td class="time-col">${p.time}</td></tr>`).join('');}
+
+function renderCharts(){
+// Follower chart (placeholder with single point - grows over time)
+new Chart(document.getElementById('followerChart').getContext('2d'),{type:'line',data:{labels:['2026-06-18'],datasets:[{label:'粉丝(万)',data:[530.8],borderColor:'#ffd200',backgroundColor:'rgba(255,210,0,.1)',fill:true,tension:.4,pointRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'粉丝数趋势(每日运行脚本积累)',color:'#aaa'}},scales:{x:{ticks:{color:'#888'},grid:{color:'rgba(255,255,255,.05)'}},y:{min:528,max:533,ticks:{color:'#888',callback:v=>v+'万'},grid:{color:'rgba(255,255,255,.05)'}}}}});
+
+// Topic pie
+const tLabels=['颜值美照','官方物料','端午节','品牌周边','INS搬运','粉丝日常','梦女文学','公益','线下应援','毕业季'];
+const tData=[8,5,4,3,3,5,3,2,2,2];
+new Chart(document.getElementById('topicChart').getContext('2d'),{type:'doughnut',data:{labels:tLabels,datasets:[{data:tData,backgroundColor:['#ff6b6b','#ffd200','#4ecdc4','#a29bfe','#74b9ff','#fd79a8','#55a3f7','#00b894','#e17055','#81ecec'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#aaa',font:{size:10}}}}}});
+
+// Engagement bar
+const top8=[...posts].sort((a,b)=>b.likes-a.likes).slice(0,8);
+new Chart(document.getElementById('engagementChart').getContext('2d'),{type:'bar',data:{labels:top8.map(p=>p.author.slice(0,6)),datasets:[{label:'转发',data:top8.map(p=>p.reposts),backgroundColor:'rgba(162,155,254,.7)'},{label:'评论',data:top8.map(p=>p.comments),backgroundColor:'rgba(78,205,196,.7)'},{label:'点赞',data:top8.map(p=>p.likes),backgroundColor:'rgba(255,107,107,.7)'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#aaa'}}},scales:{x:{ticks:{color:'#888'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#888',callback:v=>v>=10000?(v/10000)+'万':v},grid:{color:'rgba(255,255,255,.05)'}}}}});
+
+// Brand performance
+new Chart(document.getElementById('brandChart').getContext('2d'),{type:'bar',data:{labels:['汉堡王','欧莱雅','参半','德施曼'],datasets:[{label:'点赞(万)',data:[4021,2386,1013,821],backgroundColor:['#ff6b6b','#ffd200','#4ecdc4','#a29bfe'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},title:{display:true,text:'品牌合作帖点赞对比(万)',color:'#aaa'}},scales:{x:{ticks:{color:'#888'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#aaa'},grid:{display:false}}}}});
+}
+render();renderCharts();
+
+// Scroll reveal animation
+const observer=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}})},{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.fade-in').forEach((el,i)=>{el.style.transitionDelay=`${i*80}ms`;observer.observe(el)});
+</script>
+</body>
+</html>
